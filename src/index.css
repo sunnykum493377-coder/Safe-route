@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  color: #202124;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 3px;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gps-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(26, 115, 232, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(26, 115, 232, 0);
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #e8eaed 25%, #f1f3f4 50%, #e8eaed 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.card-in {
+  animation: cardIn 0.35s ease both;
+}
+
+.gps-pulse {
+  animation: gps-pulse 2s infinite;
+}
+
+/* Leaflet fixes */
+.leaflet-container {
+  background: #e5e3df;
+}
+
+.leaflet-control-zoom,
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+/* Smooth zoom animations */
+.leaflet-zoom-anim .leaflet-zoom-animated {
+  transition: transform 0.25s cubic-bezier(0, 0, 0.25, 1);
+}
+
+.leaflet-tile-container {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Custom map styles */
+.origin-dot {
+  width: 14px;
+  height: 14px;
+  background: white;
+  border: 3px solid #1a73e8;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.dest-pin {
+  position: relative;
+  width: 24px;
+  height: 32px;
+  display: inline-block;
+}
+
+.gps-dot {
+  width: 16px;
+  height: 16px;
+  background: #1a73e8;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.5);
+  animation: gps-pulse 2s infinite;
+}
+
+/* Route popup styling */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  min-width: 280px;
+}
+
+.leaflet-popup-content {
+  margin: 12px 16px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.leaflet-popup-tip {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.route-popup {
+  min-width: 250px;
+}
+
+/* Smooth polyline hover transitions */
+.leaflet-interactive {
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+  cursor: pointer;
+}
+
+.leaflet-interactive:hover {
+  stroke-width: 6 !important;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .mobile-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 50vh;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+    z-index: 20;
+  }
+}
