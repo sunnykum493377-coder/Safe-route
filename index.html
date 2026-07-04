@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShieldRoute – Smart Route Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;width:100%;overflow:hidden;font-family:'Google Sans',Roboto,Arial,sans-serif;color:#202124}
+
+/* ── LAYOUT ── */
+#app{display:flex;width:100vw;height:100vh;overflow:hidden}
+
+/* ── LEFT STRIP ── */
+#left-strip{
+  width:56px;min-width:56px;height:100vh;
+  background:#fff;border-right:1px solid #e8eaed;
+  display:flex;flex-direction:column;align-items:center;
+  padding:10px 0;gap:2px;z-index:15;flex-shrink:0;
+  box-shadow:1px 0 3px rgba(0,0,0,.08);
+}
+.strip-btn{
+  width:44px;height:44px;border:none;background:transparent;
+  border-radius:50%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  cursor:pointer;gap:2px;color:#5f6368;transition:background .15s;
+}
+.strip-btn:hover{background:#f1f3f4}
+.strip-btn.active{color:#1a73e8}
+.strip-label{font-size:9px;font-weight:500;color:inherit;line-height:1}
+.strip-sep{width:32px;height:1px;background:#e8eaed;margin:4px 0}
+.strip-spacer{flex:1}
+</style>
+<style>
+/* ── SIDEBAR ── */
+#sidebar{
+  width:400px;min-width:400px;height:100vh;
+  background:#fff;display:flex;flex-direction:column;
+  overflow:hidden;box-shadow:2px 0 8px rgba(0,0,0,.12);
+  transition:width .3s,min-width .3s;
+  position:relative;z-index:10;flex-shrink:0;
+}
+#sidebar.collapsed{width:0;min-width:0}
+#collapse-btn{
+  position:absolute;right:-14px;top:50%;transform:translateY(-50%);
+  width:14px;height:48px;background:#fff;
+  border:1px solid #e8eaed;border-left:none;
+  border-radius:0 8px 8px 0;cursor:pointer;z-index:20;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:2px 0 6px rgba(0,0,0,.12);font-size:10px;color:#70757a;
+}
+#sidebar-inner{display:flex;flex-direction:column;height:100%;min-width:400px;overflow:hidden}
+#sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#dadce0 transparent}
+#sidebar-scroll::-webkit-scrollbar{width:5px}
+#sidebar-scroll::-webkit-scrollbar-thumb{background:#dadce0;border-radius:3px}
+
+/* ── SEARCH SECTION ── */
+#search-section{padding:12px 14px;border-bottom:1px solid #e8eaed;flex-shrink:0;background:#fff}
+#logo{display:flex;align-items:center;gap:8px;padding:2px 2px 10px 2px}
+#logo .shield{font-size:20px}
+#logo .brand{font-size:17px;font-weight:700;color:#1a73e8;letter-spacing:-.2px}
+#logo .tag{font-size:11px;color:#70757a;margin-left:2px}
+.inputs-wrap{display:flex;align-items:stretch;gap:8px}
+.input-dots{width:18px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:0}
+.dot-o{width:11px;height:11px;border:2.5px solid #1a73e8;border-radius:50%;background:#fff;flex-shrink:0}
+.dot-dash{width:2px;flex:1;min-height:14px;background:repeating-linear-gradient(to bottom,#bdc1c6 0,#bdc1c6 4px,transparent 4px,transparent 8px);margin:3px 0}
+.dot-d{width:11px;height:11px;background:#ea4335;border-radius:50% 50% 50% 0;transform:rotate(-45deg);flex-shrink:0}
+.inputs-col{flex:1;display:flex;flex-direction:column;gap:7px}
+.route-input{
+  height:40px;width:100%;padding:0 14px;
+  font-size:14px;font-family:inherit;color:#202124;
+  border:none;outline:none;border-radius:22px;
+  box-shadow:0 1px 3px 1px rgba(0,0,0,.18);transition:box-shadow .2s;
+}
+.route-input:focus{box-shadow:0 1px 6px 2px rgba(26,115,232,.3)}
+.route-input::placeholder{color:#9aa0a6;font-size:13px}
+.swap-col{width:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+#swap-btn{
+  width:30px;height:30px;border:1px solid #dadce0;border-radius:50%;
+  background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:#5f6368;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,.12);transition:background .15s;
+}
+#swap-btn:hover{background:#f1f3f4}
+
+/* ── TRANSPORT TABS ── */
+#transport-tabs{display:flex;margin-top:10px;border-top:1px solid #e8eaed}
+.tab-btn{
+  flex:1;height:54px;border:none;background:transparent;
+  border-bottom:3px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;cursor:pointer;color:#70757a;font-family:inherit;transition:background .15s;
+}
+.tab-btn:hover{background:#f1f3f4}
+.tab-btn.active{border-bottom-color:#1a73e8;color:#1a73e8}
+.tab-icon{font-size:17px;line-height:1}
+.tab-label{font-size:10px;font-weight:500}
+.tab-time{font-size:10px}
+.tab-btn.active .tab-label,.tab-btn.active .tab-time{color:#1a73e8}
+
+/* ── GET ROUTES BTN ── */
+#get-routes-btn{
+  display:block;width:100%;height:40px;margin-top:10px;
+  background:#1a73e8;color:#fff;border:none;border-radius:22px;
+  font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);transition:background .2s;
+}
+#get-routes-btn:hover{background:#1765cc}
+#get-routes-btn:disabled{background:#dadce0;cursor:default;box-shadow:none}
+</style>
+<style>
+/* ── ALERT / INFO BAR ── */
+#alert-banner{display:none;background:#fff8e1;border-left:3px solid #f9ab00;padding:8px 14px;font-size:12px;color:#5f6368;align-items:flex-start;gap:8px;flex-shrink:0}
+#alert-banner.show{display:flex}
+#alert-banner strong{display:block;color:#202124;font-size:12.5px;margin-bottom:1px}
+#info-bar{display:none;background:#f1f3f4;padding:7px 14px;font-size:12.5px;color:#5f6368;font-weight:500;align-items:center;justify-content:space-between;border-bottom:1px solid #e8eaed;flex-shrink:0;gap:6px}
+#info-bar.show{display:flex}
+.aqi-chip{font-size:11px;font-weight:600;color:#c5221f;background:#fce8e6;padding:2px 8px;border-radius:12px}
+
+/* ── SKELETON ── */
+#skeleton{display:none;padding:10px}
+#skeleton.show{display:block}
+.sk-card{background:#fff;border-radius:8px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.sk-line{border-radius:4px;margin-bottom:9px;background:linear-gradient(90deg,#e8eaed 25%,#f1f3f4 50%,#e8eaed 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── ROUTE CARDS ── */
+#routes-list{display:none;padding:8px}
+#routes-list.show{display:block}
+.route-card{
+  background:#fff;border-left:4px solid #e8eaed;border-radius:8px;
+  padding:14px;margin-bottom:10px;cursor:pointer;position:relative;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);transition:box-shadow .2s,border-color .2s;
+  animation:cardIn .35s ease both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.route-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.14)}
+.route-card.selected{border-left-color:#1a73e8;background:#f8f9ff;box-shadow:0 2px 10px rgba(26,115,232,.18)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.card-title{display:flex;align-items:center;gap:7px}
+.card-icon{font-size:17px}
+.card-name{font-size:13.5px;font-weight:600;color:#202124}
+.score-badge{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#fff;flex-shrink:0}
+.best-tag{display:inline-block;background:#e6f4ea;color:#137333;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:.4px;margin-bottom:8px;text-transform:uppercase}
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;background:#f8f9fa;border-radius:8px;padding:10px}
+.stat-box{text-align:center}
+.stat-lbl{font-size:10.5px;color:#70757a;margin-bottom:2px}
+.stat-val{font-size:16px;font-weight:700;color:#1a73e8}
+
+/* ── WEATHER CARD ── */
+.wx-card{background:#f8f9fa;border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid #e8eaed}
+.wx-top{display:flex;gap:10px;margin-bottom:10px}
+.wx-main{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wx-icon-big{font-size:34px;line-height:1}
+.wx-temp{font-size:24px;font-weight:700;color:#202124;line-height:1}
+.wx-desc{font-size:12px;color:#5f6368;margin-top:2px}
+.wx-feels{font-size:11px;color:#9aa0a6;margin-top:1px}
+.wx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1}
+.wx-cell{background:#fff;border-radius:7px;padding:6px 8px;border:1px solid #e8eaed}
+.wx-cell-val{font-size:13px;font-weight:700;color:#202124}
+.wx-cell-lbl{font-size:10px;color:#9aa0a6;margin-top:1px}
+.wx-cell-sub{font-size:10px;font-weight:600;margin-top:2px}
+.green{color:#137333}.orange{color:#e65100}.red{color:#c5221f}
+.wx-aqi-row{display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;padding:8px 10px;border:1px solid #e8eaed}
+.wx-aqi-left{flex:1}
+.wx-aqi-label{font-size:10px;color:#9aa0a6;margin-bottom:2px}
+.wx-aqi-val{font-size:22px;font-weight:700;line-height:1}
+.wx-aqi-pm{font-size:10px;color:#9aa0a6;margin-top:4px}
+.wx-uv-block{flex-shrink:0;text-align:center}
+.pill{font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:10px}
+.p-good{background:#e6f4ea;color:#137333}
+.p-moderate{background:#fef7e0;color:#b06000}
+.p-poor{background:#fce8e6;color:#c5221f}
+.p-hot{background:#fce8e6;color:#c5221f}
+.p-warm{background:#fff3e0;color:#e65100}
+.p-pleasant{background:#e6f4ea;color:#137333}
+.p-cool{background:#e8f0fe;color:#1a73e8}
+.desc-box{background:#e8f0fe;border-radius:7px;padding:9px 11px;font-size:12px;color:#1558d6;margin-bottom:11px;line-height:1.5}
+.select-btn{display:block;width:100%;height:36px;background:#1a73e8;color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .2s}
+.select-btn:hover{background:#1765cc}
+.select-btn.chosen{background:#137333}
+
+/* ── NAV PANEL ── */
+#nav-panel{display:none;padding:14px;border-top:1px solid #e8eaed;background:#fff;flex-shrink:0}
+#nav-panel.show{display:block}
+.nav-km{font-size:30px;font-weight:700;color:#1a73e8;line-height:1;margin-bottom:3px}
+.nav-eta{font-size:13px;color:#5f6368;margin-bottom:4px}
+.nav-name{font-size:12.5px;font-weight:500;margin-bottom:4px;color:#202124}
+.nav-progress{height:4px;background:#e8eaed;border-radius:2px;margin:8px 0;overflow:hidden}
+.nav-progress-fill{height:100%;background:#1a73e8;border-radius:2px;transition:width 1s linear}
+#stop-btn{display:block;width:100%;height:38px;background:#ea4335;color:#fff;border:none;border-radius:22px;margin-top:8px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .2s}
+#stop-btn:hover{background:#c62828}
+
+/* ── MAP ── */
+#map-container{flex:1;position:relative;overflow:hidden;min-width:0}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:#e4e0da}
+.leaflet-control-zoom,.leaflet-control-attribution{display:none!important}
+
+/* ── MAP CONTROLS ── */
+.map-controls{position:absolute;right:14px;bottom:72px;display:flex;flex-direction:column;gap:1px;z-index:800}
+.mc-btn{width:40px;height:40px;background:#fff;border:none;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.28);cursor:pointer;font-size:18px;font-weight:400;display:flex;align-items:center;justify-content:center;color:#5f6368;transition:background .15s}
+.mc-btn:hover{background:#f1f3f4}
+.mc-sep{height:1px;background:#e8eaed;margin:0 4px}
+#btn-layers{position:absolute;left:12px;bottom:34px;width:40px;height:40px;background:#fff;border:none;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.28);cursor:pointer;z-index:800;display:flex;align-items:center;justify-content:center;color:#5f6368;transition:background .15s}
+#btn-layers:hover{background:#f1f3f4}
+#btn-layers.active{background:#e8f0fe;color:#1a73e8}
+#map-attr{position:absolute;bottom:0;left:0;right:0;height:26px;background:rgba(255,255,255,.92);border-top:1px solid #e8eaed;display:flex;align-items:center;padding:0 12px;gap:10px;font-size:10.5px;color:#70757a;z-index:800}
+#map-attr a{color:#70757a;text-decoration:none}
+#map-attr .dot{color:#bdc1c6}
+
+/* ── GPS DOT ── */
+.gps-dot{width:16px;height:16px;background:#1a73e8;border:3px solid #fff;border-radius:50%;animation:gps-pulse 2s infinite;box-shadow:0 2px 6px rgba(26,115,232,.5)}
+@keyframes gps-pulse{0%{box-shadow:0 0 0 0 rgba(26,115,232,.45)}70%{box-shadow:0 0 0 12px rgba(26,115,232,0)}100%{box-shadow:0 0 0 0 rgba(26,115,232,0)}}
+.time-badge{background:#fff;border-radius:14px;padding:4px 10px;font-size:11.5px;font-weight:600;white-space:nowrap;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.time-badge.blue{color:#1a73e8;border:2px solid #1a73e8}
+.time-badge.gray{color:#70757a;border:2px solid #9aa0a6}
+.origin-dot{width:14px;height:14px;background:#fff;border:3px solid #1a73e8;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.3)}
+.dest-pin{position:relative;width:24px;height:32px;display:inline-block}
+.dest-pin svg{position:absolute;top:0;left:0}
+
+/* ── TOOLTIP ── */
+#tooltip{position:fixed;z-index:9999;background:#202124;color:#fff;font-size:11.5px;font-family:inherit;padding:5px 10px;border-radius:4px;pointer-events:none;white-space:nowrap;opacity:0;transition:opacity .15s;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#tooltip.show{opacity:1}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  #left-strip{display:none}
+  #sidebar{position:fixed;bottom:0;left:0;right:0;width:100%!important;min-width:100%!important;height:50vh;border-radius:16px 16px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.18);z-index:20}
+  #sidebar-inner{min-width:100%}
+  #collapse-btn{display:none}
+  #map-container{width:100%;height:55vh}
+  .map-controls{bottom:52vh}
+}
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<div id="app">
+
+  <!-- LEFT STRIP -->
+  <div id="left-strip">
+    <button class="strip-btn active" data-tip="Search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="strip-label">Search</span>
+    </button>
+    <button class="strip-btn" data-tip="Saved places">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <span class="strip-label">Saved</span>
+    </button>
+    <button class="strip-btn" data-tip="Recents">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="strip-label">Recents</span>
+    </button>
+    <div class="strip-sep"></div>
+    <button class="strip-btn" data-tip="Your location">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span class="strip-label">Places</span>
+    </button>
+    <div class="strip-spacer"></div>
+    <div class="strip-sep"></div>
+    <button class="strip-btn" data-tip="Settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="strip-label">Settings</span>
+    </button>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <button id="collapse-btn">&#8249;</button>
+    <div id="sidebar-inner">
+
+      <div id="search-section">
+        <div id="logo">
+          <span class="shield">🛡️</span>
+          <span class="brand">ShieldRoute</span>
+          <span class="tag">Smart Routing</span>
+        </div>
+        <div class="inputs-wrap">
+          <div class="input-dots">
+            <div class="dot-o"></div>
+            <div class="dot-dash"></div>
+            <div class="dot-d"></div>
+          </div>
+          <div class="inputs-col">
+            <input class="route-input" id="src-input" type="text" placeholder="Choose starting point" value="Rajpura, Punjab" autocomplete="off">
+            <input class="route-input" id="dst-input" type="text" placeholder="Choose destination" value="Patiala, Punjab" autocomplete="off">
+          </div>
+          <div class="swap-col">
+            <button id="swap-btn" title="Swap">⇅</button>
+          </div>
+        </div>
+        <div id="transport-tabs">
+          <button class="tab-btn active" data-mode="car"><span class="tab-icon">🚗</span><span class="tab-label">Car</span><span class="tab-time" id="tt-car">38 min</span></button>
+          <button class="tab-btn" data-mode="bike"><span class="tab-icon">🏍️</span><span class="tab-label">Bike</span><span class="tab-time" id="tt-bike">52 min</span></button>
+          <button class="tab-btn" data-mode="bus"><span class="tab-icon">🚌</span><span class="tab-label">Bus</span><span class="tab-time" id="tt-bus">1h 10m</span></button>
+          <button class="tab-btn" data-mode="walk"><span class="tab-icon">🚶</span><span class="tab-label">Walk</span><span class="tab-time" id="tt-walk">5h 40m</span></button>
+        </div>
+        <button id="get-routes-btn">Get Routes</button>
+      </div>
+
+      <div id="sidebar-scroll">
+        <div id="alert-banner">
+          <span style="font-size:16px">⚠️</span>
+          <div><strong id="ab-title">High AQI Alert</strong><span id="ab-desc">Poor air quality on fastest route. Safe route recommended.</span></div>
+        </div>
+        <div id="info-bar">
+          <span id="info-txt">3 routes found · Smart Analysis</span>
+          <span class="aqi-chip" id="aqi-chip" style="display:none">⚠️ High AQI</span>
+        </div>
+        <div id="skeleton">
+          <div class="sk-card"><div class="sk-line" style="height:16px;width:55%"></div><div class="sk-line" style="height:13px;width:88%"></div><div class="sk-line" style="height:34px;width:100%;border-radius:20px;margin-top:6px"></div></div>
+          <div class="sk-card"><div class="sk-line" style="height:16px;width:62%"></div><div class="sk-line" style="height:13px;width:80%"></div><div class="sk-line" style="height:34px;width:100%;border-radius:20px;margin-top:6px"></div></div>
+          <div class="sk-card"><div class="sk-line" style="height:16px;width:50%"></div><div class="sk-line" style="height:13px;width:75%"></div><div class="sk-line" style="height:34px;width:100%;border-radius:20px;margin-top:6px"></div></div>
+        </div>
+        <div id="routes-list"></div>
+      </div>
+
+      <div id="nav-panel">
+        <div class="nav-km" id="nav-km">-- km</div>
+        <div class="nav-eta" id="nav-eta">Calculating ETA…</div>
+        <div class="nav-name" id="nav-name"></div>
+        <div class="nav-progress"><div class="nav-progress-fill" id="nav-fill" style="width:100%"></div></div>
+        <button id="stop-btn">🔴 Stop Navigation</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div class="map-controls">
+      <button class="mc-btn" id="btn-loc" title="My location">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="1" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="23" y2="12"/></svg>
+      </button>
+      <div class="mc-sep"></div>
+      <button class="mc-btn" id="btn-zi">+</button>
+      <div class="mc-sep"></div>
+      <button class="mc-btn" id="btn-zo">−</button>
+    </div>
+    <button id="btn-layers" title="Layers">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    </button>
+    <div id="map-attr">
+      <span>Map data ©2026 OpenStreetMap</span>
+      <span class="dot">·</span>
+      <a href="https://www.openstreetmap.org/copyright" target="_blank">Terms</a>
+      <span class="dot">·</span>
+      <span id="scale-txt">—</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── STATE ── */
+let ROUTES=[], SRC=null, DEST=null;
+let mode='car', selectedId=null, routesLoaded=false;
+let navigating=false, watchId=null, gpsMark=null;
+let simTimer=null, simIdx=0;
+let polylines=[], badges=[];
+let originMark=null, destMark=null;
+let collapsed=false;
+
+/* ── MAP ── */
+const map = L.map('map', {center:[22.5,78.9], zoom:5, zoomControl:false, attributionControl:false});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+
+/* Force resize after DOM ready */
+setTimeout(() => map.invalidateSize(), 300);
+
+const icoOrigin = L.divIcon({className:'',html:'<div class="origin-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+const icoDest   = L.divIcon({className:'',html:'<div class="dest-pin"><svg viewBox="0 0 24 36" width="24" height="36"><path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="#ea4335"/><circle cx="12" cy="12" r="5" fill="white"/></svg></div>',iconSize:[24,36],iconAnchor:[12,36]});
+
+function placeMarkers(s,d){
+  if(originMark) map.removeLayer(originMark);
+  if(destMark)   map.removeLayer(destMark);
+  originMark = L.marker(s,{icon:icoOrigin}).addTo(map);
+  destMark   = L.marker(d,{icon:icoDest}).addTo(map);
+}
+
+document.getElementById('btn-zi').onclick = () => map.zoomIn();
+document.getElementById('btn-zo').onclick = () => map.zoomOut();
+document.getElementById('btn-loc').onclick = goToLocation;
+document.getElementById('btn-layers').onclick = function(){ this.classList.toggle('active'); };
+map.on('zoomend', () => {
+  const z=map.getZoom(), m=Math.round(559082264/Math.pow(2,z)/96*25.4);
+  document.getElementById('scale-txt').textContent = '1:'+m.toLocaleString();
+});
+
+/* ── HELPERS ── */
+const MODE_FACTOR = {car:1, bike:1.4, bus:1.85, walk:8};
+const ICONS = ['⚡','🛡️','🗺️'];
+const ROUTE_NAMES = ['Fastest Route','Alternate Route','Scenic Route'];
+
+function fmtDist(m){ return m>=1000 ? (m/1000).toFixed(1)+' km' : Math.round(m)+' m'; }
+function fmtTime(sec,f){
+  const s=Math.round(sec*f), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  return h>0 ? h+'h '+(m>0?m+'m':'') : m+' min';
+}
+function toMins(str){
+  let t=0;
+  const h=str.match(/(\d+)h/); if(h) t+=+h[1]*60;
+  const m=str.match(/(\d+)\s*min/); if(m) t+=+m[1];
+  return t||1;
+}
+function haversine(a,b,c,d){
+  const R=6371,r=Math.PI/180,dl=(c-a)*r,dn=(d-b)*r;
+  const x=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dn/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function scoreColor(s){ return s>=90?'#137333':s>=70?'#b06000':s>=50?'#e65100':'#c5221f'; }
+
+function aqiInfo(v){
+  if(v<=20)  return {lbl:'Good',     cls:'p-good',     color:'#137333'};
+  if(v<=40)  return {lbl:'Fair',     cls:'p-good',     color:'#137333'};
+  if(v<=60)  return {lbl:'Moderate', cls:'p-moderate', color:'#b06000'};
+  if(v<=80)  return {lbl:'Poor',     cls:'p-poor',     color:'#e65100'};
+  if(v<=100) return {lbl:'Very Poor',cls:'p-hot',      color:'#c5221f'};
+  return             {lbl:'Hazardous',cls:'p-hot',     color:'#7b0000'};
+}
+function tempInfo(t){
+  if(t<10) return {lbl:'Cold',cls:'p-cool'};
+  if(t<20) return {lbl:'Cool',cls:'p-cool'};
+  if(t<28) return {lbl:'Pleasant',cls:'p-pleasant'};
+  if(t<35) return {lbl:'Warm',cls:'p-warm'};
+  return          {lbl:'Hot',cls:'p-hot'};
+}
+function wmoLabel(c){
+  if(c===0) return 'Clear Sky'; if(c<=2) return 'Partly Cloudy'; if(c===3) return 'Overcast';
+  if(c<=49) return 'Foggy'; if(c<=59) return 'Drizzle'; if(c<=69) return 'Rain';
+  if(c<=79) return 'Snow'; if(c<=82) return 'Rain Showers'; if(c<=99) return 'Thunderstorm';
+  return 'Unknown';
+}
+function wmoIcon(c){
+  if(c===0) return '☀️'; if(c<=2) return '⛅'; if(c===3) return '☁️';
+  if(c<=49) return '🌫️'; if(c<=69) return '🌧️'; if(c<=79) return '❄️';
+  if(c<=82) return '🌦️'; if(c<=99) return '⛈️'; return '🌡️';
+}
+function windDir(d){ return ['N','NE','E','SE','S','SW','W','NW'][Math.round(d/45)%8]; }
+function uvLabel(u){ return u<=2?'Low':u<=5?'Moderate':u<=7?'High':u<=10?'Very High':'Extreme'; }
+function calcScore(aqi,temp){
+  let s=100;
+  if(aqi>100) s-=30; else if(aqi>60) s-=15; else if(aqi>40) s-=5;
+  if(temp>40) s-=20; else if(temp>35) s-=10; else if(temp<10) s-=8;
+  return Math.max(10,Math.min(100,Math.round(s)));
+}
+
+/* ── API CALLS ── */
+async function geocode(q){
+  const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=1',{headers:{'Accept-Language':'en'}});
+  const d=await r.json();
+  if(!d.length) throw new Error('Location not found: "'+q+'"');
+  return [parseFloat(d[0].lat),parseFloat(d[0].lon)];
+}
+
+async function fetchOSRM(s,d){
+  const url=`https://router.project-osrm.org/route/v1/driving/${s[1]},${s[0]};${d[1]},${d[0]}?overview=full&geometries=geojson&alternatives=true`;
+  const r=await fetch(url); const j=await r.json();
+  if(j.code!=='Ok') throw new Error('Could not find road route between these locations');
+  return j.routes.map(x=>({coords:x.geometry.coordinates.map(c=>[c[1],c[0]]),distM:x.distance,durS:x.duration}));
+}
+
+async function fetchWeather(lat,lon){
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,visibility&hourly=uv_index&forecast_days=1&timezone=auto`;
+  const r=await fetch(url); const d=await r.json(); const c=d.current;
+  const uv=Math.max(...(d.hourly?.uv_index?.slice(0,12)||[0]));
+  return {
+    temp:Math.round(c.temperature_2m), feelsLike:Math.round(c.apparent_temperature),
+    humidity:Math.round(c.relative_humidity_2m), windSpeed:Math.round(c.wind_speed_10m),
+    windDeg:Math.round(c.wind_direction_10m||0), pressure:Math.round(c.surface_pressure),
+    vis:+((c.visibility||0)/1000).toFixed(1), code:c.weather_code, uv:Math.round(uv)
+  };
+}
+
+async function fetchAQI(lat,lon){
+  const url=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10&timezone=auto`;
+  const r=await fetch(url); const d=await r.json();
+  return {aqi:Math.round(d.current?.european_aqi||0), pm25:+(d.current?.pm2_5||0).toFixed(1), pm10:+(d.current?.pm10||0).toFixed(1)};
+}
+
+/* ── DRAW MAP ROUTES ── */
+function clearMapRoutes(){
+  polylines.forEach(l=>map.removeLayer(l));
+  badges.forEach(b=>map.removeLayer(b));
+  polylines=[]; badges=[];
+}
+
+function bestId(){ return ROUTES.slice().sort((a,b)=>b.score-a.score)[0]?.id||1; }
+
+function drawRoutes(activeId){
+  clearMapRoutes();
+  const order=[...ROUTES.filter(r=>r.id!==activeId),...ROUTES.filter(r=>r.id===activeId)];
+  order.forEach(r=>{
+    const on=r.id===activeId;
+    const line=L.polyline(r.coords,{color:on?'#1a73e8':'#9aa0a6',weight:on?6:4,opacity:on?1:.7,lineJoin:'round',lineCap:'round'}).addTo(map);
+    line._rid=r.id;
+    line.on('click',()=>{selectedId=r.id;drawRoutes(r.id);updateCards();});
+    polylines.push(line);
+    const mid=r.coords[Math.floor(r.coords.length/2)];
+    const badge=L.marker(mid,{icon:L.divIcon({className:'',html:`<div class="time-badge ${on?'blue':'gray'}">${r.time[mode]}</div>`,iconAnchor:[40,14]}),interactive:false,zIndexOffset:on?600:100}).addTo(map);
+    badges.push(badge);
+  });
+}
+
+/* ── RENDER CARDS ── */
+function renderCards(){
+  const list=document.getElementById('routes-list');
+  const best=bestId(); list.innerHTML='';
+  ROUTES.forEach((r,i)=>{
+    const isBest=r.id===best, isSel=r.id===selectedId;
+    const ai=aqiInfo(r.aqi), ti=tempInfo(r.temp);
+    const aqiDeg=Math.min(180,Math.round((r.aqi/100)*180));
+    const card=document.createElement('div');
+    card.className='route-card'+(isSel?' selected':'');
+    card.id='card-'+r.id; card.style.animationDelay=(i*.08)+'s';
+    card.innerHTML=`
+      <div class="card-header">
+        <div class="card-title"><span class="card-icon">${r.icon}</span><span class="card-name">${r.name}</span></div>
+        <div class="score-badge" style="background:${scoreColor(r.score)}">${r.score}</div>
+      </div>
+      ${isBest?'<div class="best-tag">⭐ Best Route</div>':''}
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-lbl">Distance</div><div class="stat-val">${r.dist[mode]}</div></div>
+        <div class="stat-box"><div class="stat-lbl">Travel Time</div><div class="stat-val">${r.time[mode]}</div></div>
+      </div>
+      <div class="wx-card">
+        <div class="wx-top">
+          <div class="wx-main">
+            <div class="wx-icon-big">${wmoIcon(r.code)}</div>
+            <div>
+              <div class="wx-temp">${r.temp}°C</div>
+              <div class="wx-desc">${wmoLabel(r.code)}</div>
+              <div class="wx-feels">Feels like ${r.feelsLike}°C</div>
+            </div>
+          </div>
+          <div class="wx-grid">
+            <div class="wx-cell"><div class="wx-cell-val">${r.vis} km</div><div class="wx-cell-lbl">Visibility</div><div class="wx-cell-sub ${r.vis>=5?'green':r.vis>=2?'orange':'red'}">${r.vis>=5?'Good':r.vis>=2?'Fair':'Poor'}</div></div>
+            <div class="wx-cell"><div class="wx-cell-val">${r.pressure} mb</div><div class="wx-cell-lbl">Pressure</div></div>
+            <div class="wx-cell"><div class="wx-cell-val">${r.windSpeed} km/h</div><div class="wx-cell-lbl">Wind ${windDir(r.windDeg)}</div></div>
+            <div class="wx-cell"><div class="wx-cell-val">${r.humidity}%</div><div class="wx-cell-lbl">Humidity</div><div class="wx-cell-sub ${r.humidity>70?'orange':'green'}">${r.humidity>70?'Humid':'OK'}</div></div>
+          </div>
+        </div>
+        <div class="wx-aqi-row">
+          <div class="wx-aqi-left">
+            <div class="wx-aqi-label">AQI (European scale)</div>
+            <div class="wx-aqi-val" style="color:${ai.color}">${r.aqi}</div>
+            <span class="pill ${ai.cls}" style="margin-top:3px;display:inline-block">${ai.lbl}</span>
+            <div class="wx-aqi-pm">PM2.5: ${r.pm25} · PM10: ${r.pm10}</div>
+          </div>
+          <svg viewBox="0 0 80 44" width="70" height="38">
+            <path d="M8,40 A32,32 0 0,1 72,40" fill="none" stroke="#e8eaed" stroke-width="7" stroke-linecap="round"/>
+            <path d="M8,40 A32,32 0 0,1 72,40" fill="none" stroke="${ai.color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${aqiDeg*0.558} 200"/>
+          </svg>
+          <div class="wx-uv-block">
+            <div class="wx-cell-val">${r.uv}</div>
+            <div class="wx-cell-lbl">UV Index</div>
+            <div class="wx-cell-sub ${r.uv<=2?'green':r.uv<=5?'orange':'red'}">${uvLabel(r.uv)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="desc-box">${r.desc}</div>
+      <button class="select-btn${isSel?' chosen':''}" data-id="${r.id}">${isSel?'✓ Route Selected':'Select This Route'}</button>`;
+    card.addEventListener('click',e=>{if(e.target.classList.contains('select-btn'))return;selectedId=r.id;drawRoutes(r.id);updateCards();});
+    card.querySelector('.select-btn').addEventListener('click',e=>{e.stopPropagation();startNav(r.id);});
+    list.appendChild(card);
+  });
+}
+
+function updateCards(){
+  document.querySelectorAll('.route-card').forEach(c=>{
+    const id=parseInt(c.id.replace('card-',''));
+    c.classList.toggle('selected',id===selectedId);
+    const btn=c.querySelector('.select-btn');
+    if(btn){btn.classList.toggle('chosen',id===selectedId);btn.textContent=id===selectedId?'✓ Route Selected':'Select This Route';}
+  });
+}
+
+/* ── GET ROUTES ── */
+async function getRoutes(){
+  const srcTxt=document.getElementById('src-input').value.trim();
+  const dstTxt=document.getElementById('dst-input').value.trim();
+  if(!srcTxt||!dstTxt) return;
+
+  stopNav(false); selectedId=null; ROUTES=[];
+  const btn=document.getElementById('get-routes-btn');
+  btn.disabled=true; btn.textContent='Finding routes…';
+  document.getElementById('routes-list').classList.remove('show');
+  document.getElementById('info-bar').classList.remove('show');
+  document.getElementById('alert-banner').classList.remove('show');
+  document.getElementById('skeleton').classList.add('show');
+
+  try {
+    [SRC,DEST] = await Promise.all([geocode(srcTxt),geocode(dstTxt)]);
+    const [rawRoutes,srcWx,dstWx,srcAQ,dstAQ] = await Promise.all([
+      fetchOSRM(SRC,DEST), fetchWeather(SRC[0],SRC[1]), fetchWeather(DEST[0],DEST[1]),
+      fetchAQI(SRC[0],SRC[1]), fetchAQI(DEST[0],DEST[1])
+    ]);
+
+    /* midpoint weather = average */
+    const avg=(a,b)=>Math.round((a+b)/2);
+    const midWx={temp:avg(srcWx.temp,dstWx.temp),feelsLike:avg(srcWx.feelsLike,dstWx.feelsLike),humidity:avg(srcWx.humidity,dstWx.humidity),windSpeed:avg(srcWx.windSpeed,dstWx.windSpeed),windDeg:avg(srcWx.windDeg,dstWx.windDeg),pressure:avg(srcWx.pressure,dstWx.pressure),vis:+((srcWx.vis+dstWx.vis)/2).toFixed(1),code:dstWx.code,uv:avg(srcWx.uv,dstWx.uv)};
+    const midAQ={aqi:avg(srcAQ.aqi,dstAQ.aqi),pm25:+((srcAQ.pm25+dstAQ.pm25)/2).toFixed(1),pm10:+((srcAQ.pm10+dstAQ.pm10)/2).toFixed(1)};
+    const wxArr=[{wx:dstWx,aq:dstAQ},{wx:midWx,aq:midAQ},{wx:midWx,aq:midAQ}];
+    const descs=['Fastest road route. Live conditions at destination.','Alternate path — better air quality zone.','Longer but less congested scenic path.'];
+
+    ROUTES = rawRoutes.slice(0,3).map((r,i)=>{
+      const {wx,aq}=wxArr[i]||wxArr[0];
+      return {id:i+1,icon:ICONS[i],name:ROUTE_NAMES[i],coords:r.coords,
+        dist:{car:fmtDist(r.distM),bike:fmtDist(r.distM*1.02),bus:fmtDist(r.distM*1.05),walk:fmtDist(r.distM)},
+        time:{car:fmtTime(r.durS,1),bike:fmtTime(r.durS,1.4),bus:fmtTime(r.durS,1.85),walk:fmtTime(r.durS,8)},
+        ...wx,...aq,score:calcScore(aq.aqi,wx.temp),desc:descs[i]||descs[0]};
+    });
+
+    /* pad to 3 routes if OSRM returned fewer */
+    while(ROUTES.length<3){
+      const i=ROUTES.length, base=ROUTES[0], {wx,aq}=wxArr[i]||wxArr[1];
+      ROUTES.push({...base,id:i+1,icon:ICONS[i],name:ROUTE_NAMES[i],desc:descs[i],
+        coords:base.coords.map(([lt,ln],j)=>[lt+(j%2?0.003:-0.003)*i,ln+(j%2?-0.002:0.002)*i]),
+        ...wx,...aq,score:calcScore(aq.aqi,wx.temp)});
+    }
+
+    placeMarkers(SRC,DEST);
+    drawRoutes(bestId());
+    routesLoaded=true;
+
+    document.getElementById('info-bar').classList.add('show');
+    document.getElementById('info-txt').textContent=ROUTES.length+' routes found · Smart Analysis';
+    const highAQI=ROUTES.some(r=>r.aqi>60);
+    document.getElementById('aqi-chip').style.display=highAQI?'inline-block':'none';
+    if(highAQI) document.getElementById('alert-banner').classList.add('show');
+
+    ['car','bike','bus','walk'].forEach(k=>document.getElementById('tt-'+k).textContent=ROUTES[0].time[k]);
+    renderCards();
+    document.getElementById('routes-list').classList.add('show');
+    map.fitBounds(L.latLngBounds(ROUTES.flatMap(r=>r.coords)),{padding:[40,40]});
+
+  } catch(e){
+    console.error(e);
+    alert('⚠️ '+e.message);
+  }
+  document.getElementById('skeleton').classList.remove('show');
+  btn.disabled=false; btn.textContent='Get Routes';
+}
+
+/* ── TRANSPORT MODE ── */
+function switchMode(m){
+  mode=m;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  if(routesLoaded){ drawRoutes(selectedId||bestId()); renderCards(); }
+}
+
+/* ── NAVIGATION ── */
+function startNav(id){
+  navigating=true; selectedId=id;
+  const r=ROUTES.find(x=>x.id===id);
+  document.getElementById('nav-km').textContent=r.dist[mode];
+  document.getElementById('nav-name').textContent=r.name;
+  document.getElementById('nav-fill').style.width='100%';
+  const eta=new Date(Date.now()+toMins(r.time[mode])*60000);
+  document.getElementById('nav-eta').textContent='Arrive at '+eta.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('nav-panel').classList.add('show');
+  drawRoutes(id); updateCards();
+  if(navigator.geolocation){
+    watchId=navigator.geolocation.watchPosition(p=>updateGPS(p.coords.latitude,p.coords.longitude),()=>simulateGPS(r.coords),{enableHighAccuracy:true,maximumAge:1000});
+  } else { simulateGPS(r.coords); }
+}
+
+function stopNav(rm=true){
+  navigating=false;
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  if(simTimer){clearInterval(simTimer);simTimer=null;}
+  if(gpsMark){map.removeLayer(gpsMark);gpsMark=null;}
+  if(rm) document.getElementById('nav-panel').classList.remove('show');
+}
+
+function updateGPS(lat,lng){
+  if(!gpsMark){
+    gpsMark=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="gps-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]}),zIndexOffset:1000}).addTo(map);
+  } else gpsMark.setLatLng([lat,lng]);
+  if(!DEST) return;
+  const km=haversine(lat,lng,DEST[0],DEST[1]);
+  document.getElementById('nav-km').textContent=km.toFixed(1)+' km';
+  const r=ROUTES.find(x=>x.id===selectedId);
+  if(r){ const total=parseFloat(r.dist[mode]); document.getElementById('nav-fill').style.width=Math.max(0,Math.min(100,(km/total)*100))+'%'; }
+}
+
+function simulateGPS(coords){
+  simIdx=0; if(simTimer) clearInterval(simTimer);
+  simTimer=setInterval(()=>{ if(!navigating||simIdx>=coords.length){clearInterval(simTimer);return;} updateGPS(coords[simIdx][0],coords[simIdx][1]); simIdx++; },1200);
+}
+
+function goToLocation(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p=>{map.setView([p.coords.latitude,p.coords.longitude],14);updateGPS(p.coords.latitude,p.coords.longitude);},()=>map.setView([22.5,78.9],5));
+}
+
+/* ── EVENTS ── */
+document.getElementById('collapse-btn').onclick=()=>{
+  collapsed=!collapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed',collapsed);
+  document.getElementById('collapse-btn').innerHTML=collapsed?'&#8250;':'&#8249;';
+  setTimeout(()=>map.invalidateSize(),320);
+};
+document.getElementById('swap-btn').onclick=()=>{
+  const s=document.getElementById('src-input'), d=document.getElementById('dst-input');
+  [s.value,d.value]=[d.value,s.value];
+};
+document.getElementById('get-routes-btn').onclick=getRoutes;
+document.getElementById('stop-btn').onclick=()=>stopNav(true);
+document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>switchMode(b.dataset.mode));
+
+function checkBtn(){
+  const ok=document.getElementById('src-input').value.trim()&&document.getElementById('dst-input').value.trim();
+  document.getElementById('get-routes-btn').disabled=!ok;
+}
+document.getElementById('src-input').oninput=checkBtn;
+document.getElementById('dst-input').oninput=checkBtn;
+
+/* ── TOOLTIP ── */
+const tip=document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{tip.textContent=el.dataset.tip;tip.classList.add('show');});
+  el.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';});
+  el.addEventListener('mouseleave',()=>tip.classList.remove('show'));
+});
+
+checkBtn();
+</script>
+</body>
+</html>
