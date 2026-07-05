@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap');
-@import 'leaflet/dist/leaflet.css';
 
 @tailwind base;
 @tailwind components;
@@ -78,26 +77,48 @@ body,
   animation: gps-pulse 2s infinite;
 }
 
-/* Leaflet fixes */
-.leaflet-container {
-  background: #e5e3df;
+/* Mapbox GL overrides */
+.mapboxgl-ctrl-logo {
+  opacity: 0.5;
 }
-
-.leaflet-control-zoom,
-.leaflet-control-attribution {
+.mapboxgl-ctrl-attrib {
   display: none !important;
 }
 
-/* Smooth zoom animations */
-.leaflet-zoom-anim .leaflet-zoom-animated {
-  transition: transform 0.25s cubic-bezier(0, 0, 0.25, 1);
+/* MapLibre GL — canvas must be transparent so our bg gradient shows */
+.maplibregl-canvas-container,
+.maplibregl-canvas {
+  background: transparent !important;
+}
+.maplibregl-map {
+  background: transparent !important;
+}
+/* Hide built-in attribution */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-logo {
+  display: none !important;
+}
+/* Navigation controls — white card, matches UI */
+.maplibregl-ctrl-group {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+}
+.maplibregl-ctrl-group button {
+  border-bottom: 1px solid rgba(0,0,0,0.06) !important;
+}
+.maplibregl-ctrl-group button:last-child { border-bottom: none !important; }
+
+/* Scale bar */
+.maplibregl-ctrl-scale {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(100,140,180,0.6) !important;
+  color: #444 !important;
+  font-size: 10px !important;
 }
 
-.leaflet-tile-container {
-  transition: opacity 0.2s ease-in-out;
-}
-
-/* Custom map styles */
+/* Globe glow ring is handled via inline box-shadow on the circle wrapper */
 .origin-dot {
   width: 14px;
   height: 14px;
@@ -122,38 +143,6 @@ body,
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(26, 115, 232, 0.5);
   animation: gps-pulse 2s infinite;
-}
-
-/* Route popup styling */
-.leaflet-popup-content-wrapper {
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  padding: 4px;
-  min-width: 280px;
-}
-
-.leaflet-popup-content {
-  margin: 12px 16px;
-  font-family: 'Google Sans', Roboto, Arial, sans-serif;
-  line-height: 1.5;
-}
-
-.leaflet-popup-tip {
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-.route-popup {
-  min-width: 250px;
-}
-
-/* Smooth polyline hover transitions */
-.leaflet-interactive {
-  transition: stroke-width 0.2s ease, opacity 0.2s ease;
-  cursor: pointer;
-}
-
-.leaflet-interactive:hover {
-  stroke-width: 6 !important;
 }
 
 /* Mobile styles */
