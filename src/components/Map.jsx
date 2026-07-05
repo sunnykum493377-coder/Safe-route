@@ -7,7 +7,7 @@ import { wmoIcon, wmoLabel } from '../utils/helpers';
 // ── Constants ─────────────────────────────────────────────────────────────
 const ROUTE_COLORS = { 1: '#1a73e8', 2: '#34a853', 3: '#ea4335' };
 const ROUTE_NAMES  = { 1: 'Fastest Route', 2: 'Safest Route', 3: 'Alternate Route' };
-const SPIN_SPEED      = 0.06;
+const SPIN_SPEED      = 0.04;  // degrees of longitude per frame — decrease = W→E like real Earth
 const RESUME_DELAY_MS = 5000;
 
 const ROUTE_EXTRA = {
@@ -191,7 +191,14 @@ export default function Map({
     const tick = () => {
       if (!spinningRef.current || !mapRef.current) return;
       const m = mapRef.current;
-      if (m.getZoom() < 4) m.setBearing((m.getBearing() + SPIN_SPEED) % 360);
+      // Only spin when zoomed out (globe view) and bearing is neutral
+      if (m.getZoom() < 4) {
+        // Earth rotates West → East: landmasses appear to move right,
+        // so the center longitude decreases (camera moves west relative to Earth).
+        const center = m.getCenter();
+        const newLng = center.lng - SPIN_SPEED;
+        m.setCenter([newLng, center.lat], { animate: false });
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -340,7 +347,9 @@ export default function Map({
 
     const map = new maplibregl.Map({
       container: containerRef.current, style: STYLE, projection: 'globe',
-      center: [20, 20], zoom: 1.5, pitch: 0, bearing: 0,
+      center: [20, 20], zoom: 1.5,
+      pitch: 0,
+      bearing: 0,   // north always up — rotation is via longitude, not bearing
       attributionControl: false, fadeDuration: 100,
     });
     mapRef.current = map;
