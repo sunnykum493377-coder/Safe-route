@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import LeftStrip from './components/LeftStrip';
 import Sidebar from './components/Sidebar';
 import Map from './components/Map';
+import AskMapsChat from './components/AskMapsChat';
 import { geocode, fetchOSRM, fetchWeather, fetchAQI } from './services/api';
 import { fmtDist, fmtTime, calcScore, toMins, haversine } from './utils/helpers';
 import { MODE_FACTOR, ICONS, ROUTE_NAMES, ROUTE_DESCRIPTIONS } from './utils/constants';
 
 function App() {
+  // Ask Maps chatbot state
+  const [askMapsOpen, setAskMapsOpen] = useState(false);
+
   // Input state
   const [source, setSource] = useState('Rajpura, Punjab');
   const [destination, setDestination] = useState('Patiala, Punjab');
@@ -266,9 +271,14 @@ function App() {
 
   return (
     <div className="flex w-screen h-screen overflow-hidden">
-      <LeftStrip />
-      
-      <Sidebar
+      <LeftStrip
+        onAskMaps={() => setAskMapsOpen((v) => !v)}
+        askMapsActive={askMapsOpen}
+      />
+
+      {/* Sidebar + Ask Maps panel — share the same column slot */}
+      <div className="relative flex h-screen flex-shrink-0">
+        <Sidebar
         source={source}
         destination={destination}
         onSourceChange={setSource}
@@ -289,8 +299,16 @@ function App() {
         navRouteName={navRouteName}
         navProgress={navProgress}
         onStopNavigation={stopNavigation}
-      />
-      
+        />
+
+        {/* Ask Maps chatbot — slides over the sidebar area */}
+        <AnimatePresence>
+          {askMapsOpen && (
+            <AskMapsChat onClose={() => setAskMapsOpen(false)} />
+          )}
+        </AnimatePresence>
+      </div>
+
       <Map
         routes={routes}
         source={sourceCoords}
@@ -299,6 +317,7 @@ function App() {
         onRouteClick={handleRouteSelect}
         gpsPosition={gpsPosition}
         onLocationRequest={updateGPSPosition}
+        transportMode={transportMode}
       />
     </div>
   );
