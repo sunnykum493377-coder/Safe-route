@@ -65,7 +65,7 @@ export default function Sidebar({
           <Skeleton show={isLoading} />
           
           {!isLoading && routes.length > 0 && (
-            <div className="p-2">
+            <div className="px-2 py-1.5">
               {routes.map((route, index) => (
                 <RouteCard
                   key={route.id}

@@ -22,7 +22,7 @@ export default function RouteCard({
   return (
     <div
       onClick={onSelect}
-      className={`bg-white rounded-lg p-3.5 mb-2.5 cursor-pointer relative shadow-sm transition-all card-in ${
+      className={`bg-white rounded-lg p-2 mb-1.5 cursor-pointer relative shadow-sm transition-all card-in ${
         isSelected 
           ? 'border-l-4 bg-blue-50 shadow-lg' 
           : 'border-l-4 hover:shadow-md'
@@ -33,18 +33,18 @@ export default function RouteCard({
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5">
           <div 
-            className="w-3 h-3 rounded-full flex-shrink-0" 
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
             style={{ backgroundColor: ROUTE_COLORS[route.id] || ROUTE_COLORS[1] }}
             title={`Route ${route.id}`}
           ></div>
-          <span className="text-[17px]">{route.icon}</span>
-          <span className="text-[13.5px] font-semibold text-text-primary">{route.name}</span>
+          <span className="text-[15px]">{route.icon}</span>
+          <span className="text-[13px] font-semibold text-text-primary">{route.name}</span>
         </div>
         <div
-          className="w-8.5 h-8.5 rounded-full flex items-center justify-center text-[11.5px] font-bold text-white flex-shrink-0"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
           style={{ background: scoreColor(route.score) }}
         >
           {route.score}
@@ -53,40 +53,40 @@ export default function RouteCard({
 
       {/* Best tag */}
       {isBest && (
-        <div className="inline-block bg-google-green-light text-google-green text-[10px] font-bold px-2 py-0.5 rounded-xl tracking-wide mb-2 uppercase">
+        <div className="inline-block bg-google-green-light text-google-green text-[9.5px] font-bold px-1.5 py-0.5 rounded-xl tracking-wide mb-1 uppercase">
           ⭐ Best Route
         </div>
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-1.5 mb-2.5 bg-bg-gray-light rounded-lg p-2.5">
+      <div className="grid grid-cols-2 gap-1 mb-1.5 bg-bg-gray-light rounded-lg p-1.5">
         <div className="text-center">
-          <div className="text-[10.5px] text-text-tertiary mb-0.5">Distance</div>
-          <div className="text-base font-bold text-google-blue">{route.dist[transportMode]}</div>
+          <div className="text-[10px] text-text-tertiary">Distance</div>
+          <div className="text-[13px] font-bold text-google-blue">{route.dist[transportMode]}</div>
         </div>
         <div className="text-center">
-          <div className="text-[10.5px] text-text-tertiary mb-0.5">Travel Time</div>
-          <div className="text-base font-bold text-google-blue">{route.time[transportMode]}</div>
+          <div className="text-[10px] text-text-tertiary">Travel Time</div>
+          <div className="text-[13px] font-bold text-google-blue">{route.time[transportMode]}</div>
         </div>
       </div>
 
       {/* Weather Card */}
-      <div className="bg-bg-gray-light rounded-[10px] p-3 mb-2.5 border border-border-light">
-        <div className="flex gap-2.5 mb-2.5">
+      <div className="bg-bg-gray-light rounded-[8px] p-2 mb-1.5 border border-border-light">
+        <div className="flex gap-2 mb-1.5">
           {/* Main weather */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="text-[34px] leading-none">{wmoIcon(route.code)}</div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="text-[28px] leading-none">{wmoIcon(route.code)}</div>
             <div>
-              <div className="text-2xl font-bold text-text-primary leading-none">{route.temp}°C</div>
-              <div className="text-xs text-text-secondary mt-0.5">{wmoLabel(route.code)}</div>
-              <div className="text-[11px] text-text-quaternary mt-0.5">Feels like {route.feelsLike}°C</div>
+              <div className="text-[18px] font-bold text-text-primary leading-none">{route.temp}°C</div>
+              <div className="text-[11px] text-text-secondary mt-0.5">{wmoLabel(route.code)}</div>
+              <div className="text-[10px] text-text-quaternary">Feels like {route.feelsLike}°C</div>
             </div>
           </div>
 
           {/* Weather grid */}
           <div className="grid grid-cols-2 gap-1 flex-1">
             <WeatherCell value={`${route.vis} km`} label="Visibility">
-              <span className={`text-[10px] font-semibold mt-0.5 ${
+              <span className={`text-[9.5px] font-semibold ${
                 route.vis >= 5 ? 'text-google-green' : route.vis >= 2 ? 'text-google-orange' : 'text-google-red'
               }`}>
                 {route.vis >= 5 ? 'Good' : route.vis >= 2 ? 'Fair' : 'Poor'}
@@ -95,7 +95,7 @@ export default function RouteCard({
             <WeatherCell value={`${route.pressure} mb`} label="Pressure" />
             <WeatherCell value={`${route.windSpeed} km/h`} label={`Wind ${windDir(route.windDeg)}`} />
             <WeatherCell value={`${route.humidity}%`} label="Humidity">
-              <span className={`text-[10px] font-semibold mt-0.5 ${
+              <span className={`text-[9.5px] font-semibold ${
                 route.humidity > 70 ? 'text-google-orange' : 'text-google-green'
               }`}>
                 {route.humidity > 70 ? 'Humid' : 'OK'}
@@ -105,20 +105,20 @@ export default function RouteCard({
         </div>
 
         {/* AQI Row */}
-        <div className="flex items-center gap-2 bg-white rounded-lg p-2 border border-border-light">
+        <div className="flex items-center gap-1.5 bg-white rounded-lg p-1.5 border border-border-light">
           <div className="flex-1">
-            <div className="text-[10px] text-text-quaternary mb-0.5">AQI (European scale)</div>
-            <div className="text-[22px] font-bold leading-none" style={{ color: ai.color }}>
+            <div className="text-[9.5px] text-text-quaternary">AQI (European scale)</div>
+            <div className="text-[18px] font-bold leading-none" style={{ color: ai.color }}>
               {route.aqi}
             </div>
-            <span className={`pill ${ai.cls} mt-0.5 inline-block`}>{ai.lbl}</span>
-            <div className="text-[10px] text-text-quaternary mt-1">
+            <span className={`pill ${ai.cls} inline-block`}>{ai.lbl}</span>
+            <div className="text-[9.5px] text-text-quaternary mt-0.5">
               PM2.5: {route.pm25} · PM10: {route.pm10}
             </div>
           </div>
           
           {/* AQI Gauge */}
-          <svg viewBox="0 0 80 44" width="70" height="38">
+          <svg viewBox="0 0 80 44" width="60" height="33">
             <path d="M8,40 A32,32 0 0,1 72,40" fill="none" stroke="#e8eaed" strokeWidth="7" strokeLinecap="round"/>
             <path 
               d="M8,40 A32,32 0 0,1 72,40" 
@@ -132,9 +132,9 @@ export default function RouteCard({
 
           {/* UV Index */}
           <div className="flex-shrink-0 text-center">
-            <div className="text-[13px] font-bold text-text-primary">{route.uv}</div>
-            <div className="text-[10px] text-text-quaternary">UV Index</div>
-            <div className={`text-[10px] font-semibold ${
+            <div className="text-[12px] font-bold text-text-primary">{route.uv}</div>
+            <div className="text-[9.5px] text-text-quaternary">UV Index</div>
+            <div className={`text-[9.5px] font-semibold ${
               route.uv <= 2 ? 'text-google-green' : route.uv <= 5 ? 'text-google-orange' : 'text-google-red'
             }`}>
               {uvLabel(route.uv)}
@@ -144,7 +144,7 @@ export default function RouteCard({
       </div>
 
       {/* Description */}
-      <div className="bg-google-blue-light rounded-lg px-2.5 py-2 text-xs text-blue-700 mb-2.5 leading-relaxed">
+      <div className="bg-google-blue-light rounded-lg px-2 py-1.5 text-[11px] text-blue-700 mb-1.5 leading-snug">
         {route.desc}
       </div>
 
@@ -154,7 +154,7 @@ export default function RouteCard({
           e.stopPropagation();
           onNavigate();
         }}
-        className={`block w-full h-9 border-none rounded-2xl text-[13px] font-medium cursor-pointer transition-colors ${
+        className={`block w-full h-8 border-none rounded-2xl text-[12.5px] font-medium cursor-pointer transition-colors ${
           isSelected 
             ? 'bg-google-green text-white' 
             : 'bg-google-blue text-white hover:bg-google-blue-dark'
@@ -165,9 +165,9 @@ export default function RouteCard({
 
       <style jsx>{`
         .pill {
-          font-size: 10.5px;
+          font-size: 10px;
           font-weight: 600;
-          padding: 2px 9px;
+          padding: 1px 7px;
           border-radius: 10px;
         }
         .p-good { background: #e6f4ea; color: #137333; }
@@ -181,9 +181,9 @@ export default function RouteCard({
 
 function WeatherCell({ value, label, children }) {
   return (
-    <div className="bg-white rounded-lg p-1.5 px-2 border border-border-light">
-      <div className="text-[13px] font-bold text-text-primary">{value}</div>
-      <div className="text-[10px] text-text-quaternary mt-0.5">{label}</div>
+    <div className="bg-white rounded-lg p-1 px-1.5 border border-border-light">
+      <div className="text-[12px] font-bold text-text-primary">{value}</div>
+      <div className="text-[9.5px] text-text-quaternary">{label}</div>
       {children}
     </div>
   );
