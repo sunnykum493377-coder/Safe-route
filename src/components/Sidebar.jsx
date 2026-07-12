@@ -5,6 +5,7 @@ import InfoBar from './InfoBar';
 import Skeleton from './Skeleton';
 import RouteCard from './RouteCard';
 import NavigationPanel from './NavigationPanel';
+import TravelModeSelector from './TravelModeSelector';
 
 export default function Sidebar({
   source,
@@ -26,7 +27,9 @@ export default function Sidebar({
   navEta,
   navRouteName,
   navProgress,
-  onStopNavigation
+  onStopNavigation,
+  travelMode,
+  onTravelModeChange,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   
@@ -34,6 +37,9 @@ export default function Sidebar({
   const bestRoute = routes.length > 0 
     ? routes.reduce((best, route) => route.score > best.score ? route : best, routes[0])
     : null;
+
+  // Show travel mode selector once both fields are filled
+  const showTravelModes = source.trim().length > 0 && destination.trim().length > 0;
 
   return (
     <div className={`${collapsed ? 'w-0 min-w-0' : 'w-[400px] min-w-[400px]'} h-screen bg-white flex flex-col overflow-hidden shadow-xl transition-all duration-300 relative z-10 flex-shrink-0`}>
@@ -59,16 +65,24 @@ export default function Sidebar({
           isLoading={isLoading}
         />
 
+        {/* Travel Mode Selector — visible once source & destination are entered */}
+        {showTravelModes && (
+          <TravelModeSelector
+            selectedMode={travelMode}
+            onModeChange={onTravelModeChange}
+          />
+        )}
+
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           <AlertBanner show={routes.length > 0 && highAQI} />
-          <InfoBar show={routes.length > 0} routeCount={routes.length} highAQI={highAQI} />
+          <InfoBar show={routes.length > 0} routeCount={routes.length} highAQI={highAQI} travelMode={travelMode} />
           <Skeleton show={isLoading} />
           
           {!isLoading && routes.length > 0 && (
             <div className="px-2 py-1.5">
               {routes.map((route, index) => (
                 <RouteCard
-                  key={route.id}
+                  key={`${travelMode}-${route.id}`}
                   route={route}
                   isBest={bestRoute?.id === route.id}
                   isSelected={selectedRouteId === route.id}
@@ -76,6 +90,7 @@ export default function Sidebar({
                   onSelect={() => onRouteSelect(route.id)}
                   onNavigate={() => onStartNavigation(route.id)}
                   index={index}
+                  travelMode={travelMode}
                 />
               ))}
             </div>

@@ -6,16 +6,23 @@ import Map from './components/Map';
 import AskMapsChat from './components/AskMapsChat';
 import { geocode, fetchOSRM, fetchWeather, fetchAQI } from './services/api';
 import { fmtDist, fmtTime, calcScore, toMins, haversine } from './utils/helpers';
-import { MODE_FACTOR, ICONS, ROUTE_NAMES, ROUTE_DESCRIPTIONS } from './utils/constants';
+import { MODE_FACTOR, ICONS, ROUTE_NAMES, ROUTE_DESCRIPTIONS, TRAVEL_MODE_META, TRAVEL_MODE_EXTRA } from './utils/constants';
 
 function App() {
   // Ask Maps chatbot state
   const [askMapsOpen, setAskMapsOpen] = useState(false);
 
-  // Input state
-  const [source, setSource] = useState('Rajpura, Punjab');
-  const [destination, setDestination] = useState('Patiala, Punjab');
+  // Input state — empty by default, user types their own locations
+  const [source, setSource] = useState('');
+  const [destination, setDestination] = useState('');
   const [transportMode, setTransportMode] = useState('car');
+
+  // Travel mode state (normal | women | pregnancy | night)
+  const [travelMode, setTravelMode] = useState('normal');
+
+  // Raw OSRM routes cache — avoids re-fetching on mode switch
+  const [rawRouteCache, setRawRouteCache] = useState(null);
+  const [weatherCache, setWeatherCache] = useState(null);
   
   // Route state
   const [routes, setRoutes] = useState([]);
@@ -43,6 +50,122 @@ function App() {
     setSource(destination);
     setDestination(source);
   };
+
+  // ── Build processed routes from raw data + chosen travel mode ────────────
+  const buildRoutes = useCallback((rawRoutes, wxArr, mode) => {
+    const meta  = TRAVEL_MODE_META[mode]  || TRAVEL_MODE_META.normal;
+    const extra = TRAVEL_MODE_EXTRA[mode] || TRAVEL_MODE_EXTRA.normal;
+
+    // For non-normal modes, generate visually distinct coords by applying
+    // per-mode offsets so each mode draws a different path on the map.
+    const modeOffsets = { normal: 0, women: 0.0025, pregnancy: 0.005, night: -0.003 };
+    const offset = modeOffsets[mode] ?? 0;
+
+    let processedRoutes = rawRoutes.slice(0, 3).map((route, i) => {
+      const { wx, aq } = wxArr[i] || wxArr[0];
+      const baseScore  = calcScore(aq.aqi, wx.temp);
+      const safetyBonus = meta.safetyScoreBonus?.[i] ?? 0;
+      const score      = Math.max(10, Math.min(100, baseScore + safetyBonus));
+
+      // Offset coords slightly per mode so routes look different on the globe
+      const coords = i === 0
+        ? route.coords
+        : route.coords.map(([lat, lng], j) => [
+            lat + (j % 2 ? offset : -offset) * (i + 1),
+            lng + (j % 2 ? -offset * 0.8 : offset * 0.8) * (i + 1),
+          ]);
+
+      return {
+        id: i + 1,
+        icon: meta.icons[i],
+        name: meta.routeNames[i],
+        coords,
+        dist: {
+          car:  fmtDist(route.distM),
+          bike: fmtDist(route.distM * 1.02),
+          bus:  fmtDist(route.distM * 1.05),
+          walk: fmtDist(route.distM),
+        },
+        time: {
+          car:  fmtTime(route.durS, 1),
+          bike: fmtTime(route.durS, 1.4),
+          bus:  fmtTime(route.durS, 1.85),
+          walk: fmtTime(route.durS, 8),
+        },
+        ...wx,
+        ...aq,
+        score,
+        desc:         meta.descriptions[i]  || meta.descriptions[0],
+        safetyLabel:  meta.safetyLabels[i]  || '',
+        aiRec:        meta.aiRec[i]         || '',
+        trafficStatus: meta.trafficStatus[i] || 'Moderate',
+        // extra map-hover details
+        hospital:     extra[i]?.hospital    || '',
+        police:       extra[i]?.police      || '',
+        petrol:       extra[i]?.petrol      || '',
+        cctv:         extra[i]?.cctv        || '',
+        lighting:     extra[i]?.lighting    || '',
+        restStop:     extra[i]?.restStop    || null,
+        travelMode:   mode,
+      };
+    });
+
+    // Pad to 3 routes if OSRM returned fewer
+    while (processedRoutes.length < 3) {
+      const i    = processedRoutes.length;
+      const base = processedRoutes[0];
+      const { wx, aq } = wxArr[i] || wxArr[1];
+      const baseScore  = calcScore(aq.aqi, wx.temp);
+      const safetyBonus = meta.safetyScoreBonus?.[i] ?? 0;
+      processedRoutes.push({
+        ...base,
+        id:    i + 1,
+        icon:  meta.icons[i],
+        name:  meta.routeNames[i],
+        desc:  meta.descriptions[i] || meta.descriptions[0],
+        safetyLabel: meta.safetyLabels[i] || '',
+        aiRec:       meta.aiRec[i]        || '',
+        trafficStatus: meta.trafficStatus[i] || 'Moderate',
+        hospital:    extra[i]?.hospital   || '',
+        police:      extra[i]?.police     || '',
+        petrol:      extra[i]?.petrol     || '',
+        cctv:        extra[i]?.cctv       || '',
+        lighting:    extra[i]?.lighting   || '',
+        restStop:    extra[i]?.restStop   || null,
+        travelMode:  mode,
+        coords: base.coords.map(([lat, lng], j) => [
+          lat + (j % 2 ? 0.004 : -0.004) * i,
+          lng + (j % 2 ? -0.003 : 0.003) * i,
+        ]),
+        ...wx,
+        ...aq,
+        score: Math.max(10, Math.min(100, baseScore + safetyBonus)),
+      });
+    }
+
+    return processedRoutes;
+  }, []);
+
+  // ── Switch travel mode (re-uses cached raw data) ─────────────────────────
+  const handleTravelModeChange = useCallback((newMode) => {
+    setTravelMode(newMode);
+    if (!rawRouteCache || !weatherCache) return; // no routes fetched yet
+
+    stopNavigation();
+    setRoutes([]);
+    setSelectedRouteId(null);
+
+    const processed = buildRoutes(rawRouteCache, weatherCache, newMode);
+    setRoutes(processed);
+
+    const times = {};
+    ['car', 'bike', 'bus', 'walk'].forEach(m => { times[m] = processed[0].time[m]; });
+    setRouteTimes(times);
+
+    const best = processed.reduce((b, r) => r.score > b.score ? r : b, processed[0]);
+    setSelectedRouteId(best.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawRouteCache, weatherCache, buildRoutes]);
 
   // Get routes
   const handleGetRoutes = async () => {
@@ -97,53 +220,12 @@ function App() {
         { wx: midWx, aq: midAQ }
       ];
 
-      // Create route objects
-      let processedRoutes = rawRoutes.slice(0, 3).map((route, i) => {
-        const { wx, aq } = wxArr[i] || wxArr[0];
-        return {
-          id: i + 1,
-          icon: ICONS[i],
-          name: ROUTE_NAMES[i],
-          coords: route.coords,
-          dist: {
-            car: fmtDist(route.distM),
-            bike: fmtDist(route.distM * 1.02),
-            bus: fmtDist(route.distM * 1.05),
-            walk: fmtDist(route.distM)
-          },
-          time: {
-            car: fmtTime(route.durS, 1),
-            bike: fmtTime(route.durS, 1.4),
-            bus: fmtTime(route.durS, 1.85),
-            walk: fmtTime(route.durS, 8)
-          },
-          ...wx,
-          ...aq,
-          score: calcScore(aq.aqi, wx.temp),
-          desc: ROUTE_DESCRIPTIONS[i] || ROUTE_DESCRIPTIONS[0]
-        };
-      });
+      // Cache raw data for travel-mode switching
+      setRawRouteCache(rawRoutes);
+      setWeatherCache(wxArr);
 
-      // Pad to 3 routes if needed
-      while (processedRoutes.length < 3) {
-        const i = processedRoutes.length;
-        const base = processedRoutes[0];
-        const { wx, aq } = wxArr[i] || wxArr[1];
-        processedRoutes.push({
-          ...base,
-          id: i + 1,
-          icon: ICONS[i],
-          name: ROUTE_NAMES[i],
-          desc: ROUTE_DESCRIPTIONS[i],
-          coords: base.coords.map(([lat, lng], j) => [
-            lat + (j % 2 ? 0.003 : -0.003) * i,
-            lng + (j % 2 ? -0.002 : 0.002) * i
-          ]),
-          ...wx,
-          ...aq,
-          score: calcScore(aq.aqi, wx.temp)
-        });
-      }
+      // Build routes for current travel mode
+      const processedRoutes = buildRoutes(rawRoutes, wxArr, travelMode);
 
       setRoutes(processedRoutes);
       
@@ -299,6 +381,8 @@ function App() {
         navRouteName={navRouteName}
         navProgress={navProgress}
         onStopNavigation={stopNavigation}
+        travelMode={travelMode}
+        onTravelModeChange={handleTravelModeChange}
         />
 
         {/* Ask Maps chatbot — slides over the sidebar area */}

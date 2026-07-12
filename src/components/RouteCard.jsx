@@ -1,10 +1,25 @@
 import { scoreColor, aqiInfo, windDir, wmoIcon, wmoLabel, uvLabel } from '../utils/helpers';
 
-// Route colors - matching the map
+// Route colors — must match Map.jsx ROUTE_COLORS exactly
 const ROUTE_COLORS = {
-  1: '#1a73e8', // Blue
-  2: '#34a853', // Green  
-  3: '#ea4335'  // Red
+  1: '#1a73e8', // Blue  — AI Recommended
+  2: '#00a550', // Green — Alternative 1
+  3: '#f57c00', // Orange — Alternative 2
+};
+
+// Travel mode accent colors
+const MODE_COLORS = {
+  normal:    '#1a73e8',
+  women:     '#d81b60',
+  pregnancy: '#7b1fa2',
+  night:     '#1565c0',
+};
+
+const MODE_BG = {
+  normal:    '#e8f0fe',
+  women:     '#fce4ec',
+  pregnancy: '#f3e5f5',
+  night:     '#e3f2fd',
 };
 
 export default function RouteCard({ 
@@ -14,10 +29,16 @@ export default function RouteCard({
   transportMode, 
   onSelect, 
   onNavigate,
-  index 
+  index,
+  travelMode = 'normal',
 }) {
   const ai = aqiInfo(route.aqi);
   const aqiDeg = Math.min(180, Math.round((route.aqi / 100) * 180));
+  const modeColor = MODE_COLORS[travelMode] || MODE_COLORS.normal;
+  const modeBg    = MODE_BG[travelMode]    || MODE_BG.normal;
+
+  // Extra travel-mode safety fields
+  const hasSafetyExtras = travelMode !== 'normal' && (route.safetyLabel || route.cctv || route.lighting);
 
   return (
     <div
@@ -58,6 +79,38 @@ export default function RouteCard({
         </div>
       )}
 
+      {/* ── Travel-mode safety badge row ── */}
+      {hasSafetyExtras && (
+        <div
+          className="flex flex-wrap gap-1 mb-1.5 p-1.5 rounded-lg"
+          style={{ background: modeBg }}
+        >
+          {route.safetyLabel && (
+            <span
+              className="text-[9.5px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: modeColor, color: '#fff' }}
+            >
+              🛡️ {route.safetyLabel}
+            </span>
+          )}
+          {route.lighting && (
+            <span className="text-[9.5px] font-semibold px-2 py-0.5 rounded-full bg-white border border-border-light text-text-secondary">
+              💡 Lighting: {route.lighting}
+            </span>
+          )}
+          {route.cctv && (
+            <span className="text-[9.5px] font-semibold px-2 py-0.5 rounded-full bg-white border border-border-light text-text-secondary">
+              📹 CCTV: {route.cctv}
+            </span>
+          )}
+          {route.trafficStatus && (
+            <span className="text-[9.5px] font-semibold px-2 py-0.5 rounded-full bg-white border border-border-light text-text-secondary">
+              🚦 Traffic: {route.trafficStatus}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-1 mb-1.5 bg-bg-gray-light rounded-lg p-1.5">
         <div className="text-center">
@@ -69,6 +122,35 @@ export default function RouteCard({
           <div className="text-[13px] font-bold text-google-blue">{route.time[transportMode]}</div>
         </div>
       </div>
+
+      {/* ── Nearby essentials (mode-specific) ── */}
+      {(route.hospital || route.police) && (
+        <div className="grid grid-cols-2 gap-1 mb-1.5">
+          {route.hospital && (
+            <div className="bg-bg-gray-light rounded-lg p-1.5 border border-border-light">
+              <div className="text-[9.5px] text-text-quaternary">🏥 Hospital</div>
+              <div className="text-[10px] font-semibold text-text-primary leading-tight mt-0.5">{route.hospital}</div>
+            </div>
+          )}
+          {route.police && (
+            <div className="bg-bg-gray-light rounded-lg p-1.5 border border-border-light">
+              <div className="text-[9.5px] text-text-quaternary">👮 Police</div>
+              <div className="text-[10px] font-semibold text-text-primary leading-tight mt-0.5">{route.police}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Rest stop (Pregnancy mode) */}
+      {route.restStop && (
+        <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-100 rounded-lg p-1.5 mb-1.5">
+          <span className="text-sm">☕</span>
+          <div>
+            <div className="text-[9.5px] text-text-quaternary">Nearest Rest Stop</div>
+            <div className="text-[10.5px] font-semibold text-text-primary">{route.restStop}</div>
+          </div>
+        </div>
+      )}
 
       {/* Weather Card */}
       <div className="bg-bg-gray-light rounded-[8px] p-2 mb-1.5 border border-border-light">
@@ -143,10 +225,19 @@ export default function RouteCard({
         </div>
       </div>
 
-      {/* Description */}
-      <div className="bg-google-blue-light rounded-lg px-2 py-1.5 text-[11px] text-blue-700 mb-1.5 leading-snug">
-        {route.desc}
-      </div>
+      {/* ── AI Recommendation ── */}
+      {route.aiRec ? (
+        <div
+          className="rounded-lg px-2 py-1.5 text-[11px] mb-1.5 leading-snug font-medium"
+          style={{ background: modeBg, color: modeColor }}
+        >
+          🤖 AI: {route.aiRec}
+        </div>
+      ) : (
+        <div className="bg-google-blue-light rounded-lg px-2 py-1.5 text-[11px] text-blue-700 mb-1.5 leading-snug">
+          {route.desc}
+        </div>
+      )}
 
       {/* Select Button */}
       <button
